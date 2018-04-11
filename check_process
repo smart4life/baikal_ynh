@@ -11,6 +11,7 @@
 		setup_private=0
 		setup_public=0
 		upgrade=1
+		upgrade=1	from_commit=1aea3f3c4943c83135f7f287e6ac10c03df56323
 		backup_restore=1
 		multi_instance=0
 		incorrect_path=1
@@ -32,3 +33,7 @@
 ;;; Options
 Email=
 Notification=none
+;;; Upgrade options
+	; commit=1aea3f3c4943c83135f7f287e6ac10c03df56323
+		name=Fix install + refactoring
+		manifest_arg=domain=DOMAIN&path=PATH&password=mysecret&
