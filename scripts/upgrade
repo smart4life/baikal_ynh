@@ -24,12 +24,14 @@ db_name=$(ynh_app_setting_get $app db_name)
 # ENSURE DOWNWARD COMPATIBILITY
 #=================================================
 
-if [ -z $final_path ]; then	# If final_path doesn't exist, create it
-	final_path="/var/www/$app"
+# If final_path doesn't exist, create it
+if [ -z $final_path ]; then
+	final_path=/var/www/$app
 	ynh_app_setting_set $app final_path $final_path
 fi
 
-if [ -z $db_name ]; then	# If db_name doesn't exist, create it
+# If db_name doesn't exist, create it
+if [ -z $db_name ]; then
 	db_name=$(ynh_sanitize_dbid $app)
 	ynh_app_setting_set $app db_name $db_name
 fi
@@ -38,11 +40,14 @@ fi
 # BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
 #=================================================
 
-ynh_backup_before_upgrade	# Backup the current version of the app
+# Backup the current version of the app
+ynh_backup_before_upgrade
 ynh_clean_setup () {
-	ynh_restore_upgradebackup	# restore it if the upgrade fails
+	# restore it if the upgrade fails
+	ynh_restore_upgradebackup
 }
-ynh_abort_if_errors	# Active trap pour arrêter le script si une erreur est détectée.
+# Exit if an error occurs during the execution of the script
+ynh_abort_if_errors
 
 #=================================================
 # CHECK THE PATH
@@ -71,7 +76,7 @@ ynh_add_nginx_config
 # CREATE DEDICATED USER
 #=================================================
 
-# Create a system user
+# Create a dedicated user (if not existing)
 ynh_system_user_create $app
 
 #=================================================
@@ -92,18 +97,20 @@ php "${final_path}/bin/upgrade.sh"
 
 # Cleanup old baikal-admin sessions
 # since we may have changed owner of the session file
-grep -lr "CSRF_TOKEN|s:" /var/lib/php5/sessions | xargs rm -f
+grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php5/sessions | xargs rm -f
 
 #=================================================
 # UPGRADE BAIKAL CONFIGURATION
 #=================================================
 
 bk_conf="${final_path}/Specific/config.php"
+
 # Verify the checksum and backup the file if it's different
 ynh_backup_if_checksum_is_different "$bk_conf"
+
 cp ../conf/config.php "$bk_conf"
 
-ynh_replace_string "#TIMEZONE#" "$(cat /etc/timezone)" "$bk_conf"
+ynh_replace_string "__TIMEZONE__" "$(cat /etc/timezone)" "$bk_conf"
 
 password_hash=$(ynh_app_setting_get $app password_hash)
 # If the password_hash is not in the app's config, recreate it from the password.
@@ -112,24 +119,26 @@ if [ -z "$password_hash" ]; then
     password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
     ynh_app_setting_set $app password_hash $password_hash
 fi
-ynh_replace_string "#PASSWORDHASH#" "${password_hash}" "$bk_conf"
+ynh_replace_string "__PASSWORDHASH__" "${password_hash}" "$bk_conf"
 
 # Store the config file checksum into the app settings
 ynh_store_file_checksum "$bk_conf"
 
 bk_conf="${final_path}/Specific/config.system.php"
+
 # Verify the checksum and backup the file if it's different
 ynh_backup_if_checksum_is_different "$bk_conf"
+
 cp ../conf/config.system.php "$bk_conf"
 
-ynh_replace_string "#PATH#" "$path_url" "$bk_conf"
-ynh_replace_string "#DBNAME#" "$db_name" "$bk_conf"
-ynh_replace_string "#DBUSER#" "$db_name" "$bk_conf"
+ynh_replace_string "__PATH__" "$path_url" "$bk_conf"
+ynh_replace_string "__DBNAME__" "$db_name" "$bk_conf"
+ynh_replace_string "__DBUSER__" "$db_name" "$bk_conf"
 db_pwd=$(ynh_app_setting_get $app mysqlpwd)
-ynh_replace_string "#DBPASS#" "$db_pwd" "$bk_conf"
+ynh_replace_string "__DBPASS__" "$db_pwd" "$bk_conf"
 
 deskey=$(ynh_app_setting_get $app deskey)
-ynh_replace_string "#DESKEY#" "$deskey" "$bk_conf"
+ynh_replace_string "__DESKEY__" "$deskey" "$bk_conf"
 
 # Store the config file checksum into the app settings
 ynh_store_file_checksum "$bk_conf"
@@ -150,9 +159,9 @@ chmod 640 "$final_path/Specific/"{config.php,config.system.php}
 #=================================================
 
 # Allow public access on /
-ynh_app_setting_set "$app" skipped_uris "/"
+ynh_app_setting_set $app skipped_uris "/"
 # But restrain on /admin
-ynh_app_setting_set "$app" protected_uris "/admin/"
+ynh_app_setting_set $app protected_uris "/admin/"
 
 #=================================================
 # RELOAD NGINX

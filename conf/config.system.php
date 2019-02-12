@@ -39,13 +39,13 @@
 define("BAIKAL_AUTH_REALM", 'BaikalDAV');
 
 # Should begin and end with a "/"
-define("BAIKAL_CARD_BASEURI", "#PATH#/card.php/");
+define("BAIKAL_CARD_BASEURI", "__PATH__/card.php/");
 
 # Should begin and end with a "/"
-define("BAIKAL_CAL_BASEURI", "#PATH#/cal.php/");
+define("BAIKAL_CAL_BASEURI", "__PATH__/cal.php/");
 
 # Should begin and end with a "/"
-define("BAIKAL_DAV_BASEURI", "#PATH#/dav.php/");
+define("BAIKAL_DAV_BASEURI", "__PATH__/dav.php/");
 
 # Define path to Baïkal Database SQLite file
 define("PROJECT_SQLITE_FILE", PROJECT_PATH_SPECIFIC . "db/db.sqlite");
@@ -57,16 +57,16 @@ define("PROJECT_DB_MYSQL", TRUE);
 define("PROJECT_DB_MYSQL_HOST", 'localhost');
 
 # MySQL > Database name
-define("PROJECT_DB_MYSQL_DBNAME", '#DBNAME#');
+define("PROJECT_DB_MYSQL_DBNAME", '__DBNAME__');
 
 # MySQL > Username
-define("PROJECT_DB_MYSQL_USERNAME", '#DBUSER#');
+define("PROJECT_DB_MYSQL_USERNAME", '__DBUSER__');
 
 # MySQL > Password
-define("PROJECT_DB_MYSQL_PASSWORD", '#DBPASS#');
+define("PROJECT_DB_MYSQL_PASSWORD", '__DBPASS__');
 
 # A random 32 bytes key that will be used to encrypt data
-define("BAIKAL_ENCRYPTION_KEY", '#DESKEY#');
+define("BAIKAL_ENCRYPTION_KEY", '__DESKEY__');
 
 # The currently configured Baïkal version
 define("BAIKAL_CONFIGURED_VERSION", '0.4.6');

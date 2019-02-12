@@ -30,14 +30,12 @@ app=$YNH_APP_INSTANCE_NAME
 # CHECK IF THE APP CAN BE INSTALLED WITH THESE ARGS
 #=================================================
 
-# Normalize the url path syntax
-path_url=$(ynh_normalize_url_path $path_url)
-
 final_path=/var/www/$app
 test ! -e "$final_path" || ynh_die "This path already contains a folder"
 
-# Check web path availability
-ynh_webpath_available $domain $path_url
+# Normalize the url path syntax
+path_url=$(ynh_normalize_url_path $path_url)
+
 # Register (book) web path
 ynh_webpath_register $app $domain $path_url
 
@@ -103,10 +101,10 @@ ynh_mysql_connect_as "$db_name" "$db_pwd" "$db_name" \
 bk_conf="${final_path}/Specific/config.php"
 cp ../conf/config.php "$bk_conf"
 
-ynh_replace_string "#TIMEZONE#" "$(cat /etc/timezone)" "$bk_conf"
+ynh_replace_string "__TIMEZONE__" "$(cat /etc/timezone)" "$bk_conf"
 # Create admin password hash
 password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
-ynh_replace_string "#PASSWORDHASH#" "${password_hash}" "$bk_conf"
+ynh_replace_string "__PASSWORDHASH__" "${password_hash}" "$bk_conf"
 ynh_app_setting_set $app password_hash $password_hash
 
 # Store the config file checksum into the app settings
@@ -114,14 +112,15 @@ ynh_store_file_checksum "$bk_conf"
 
 bk_conf="${final_path}/Specific/config.system.php"
 cp ../conf/config.system.php "$bk_conf"
-ynh_replace_string "#PATH#" "$path_url" "$bk_conf"
-ynh_replace_string "#DBNAME#" "$db_name" "$bk_conf"
-ynh_replace_string "#DBUSER#" "$db_name" "$bk_conf"
-ynh_replace_string "#DBPASS#" "$db_pwd" "$bk_conf"
+
+ynh_replace_string "__PATH__" "$path_url" "$bk_conf"
+ynh_replace_string "__DBNAME__" "$db_name" "$bk_conf"
+ynh_replace_string "__DBUSER__" "$db_name" "$bk_conf"
+ynh_replace_string "__DBPASS__" "$db_pwd" "$bk_conf"
 
 deskey=$(ynh_string_random 24)
-ynh_app_setting_set "$app" encrypt_key "$deskey"
-ynh_replace_string "#DESKEY#" "$deskey" "$bk_conf"
+ynh_app_setting_set $app encrypt_key "$deskey"
+ynh_replace_string "__DESKEY__" "$deskey" "$bk_conf"
 
 # Store the config file checksum into the app settings
 ynh_store_file_checksum "$bk_conf"
@@ -145,9 +144,9 @@ chmod 640 "$final_path/Specific/"{config.php,config.system.php}
 #=================================================
 
 # Allow public access on /
-ynh_app_setting_set "$app" skipped_uris "/"
+ynh_app_setting_set $app skipped_uris "/"
 # But restrain on /admin
-ynh_app_setting_set "$app" protected_uris "/admin/"
+ynh_app_setting_set $app protected_uris "/admin/"
 
 #=================================================
 # RELOAD NGINX
