@@ -97,7 +97,7 @@ php "${final_path}/bin/upgrade.sh"
 
 # Cleanup old baikal-admin sessions
 # since we may have changed owner of the session file
-grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php5/sessions | xargs rm -f
+grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
 
 #=================================================
 # UPGRADE BAIKAL CONFIGURATION
