@@ -6,7 +6,7 @@
         "en": "Lightweight CalDAV+CardDAV server",
         "fr": "Serveur CalDAV+CardDAV léger"
     },
-    "version": "0.4.6",
+    "version": "0.4.6~ynh1",
     "url": "http://baikal-server.com/",
     "license": "GPL-3.0",
     "maintainer": {
