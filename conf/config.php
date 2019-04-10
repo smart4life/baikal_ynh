@@ -32,7 +32,7 @@
 #
 
 # Timezone of your users, if unsure, check http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-define("PROJECT_TIMEZONE", '#TIMEZONE#');
+define("PROJECT_TIMEZONE", '__TIMEZONE__');
 
 # CardDAV ON/OFF switch; default TRUE
 define("BAIKAL_CARD_ENABLED", TRUE);
@@ -59,4 +59,4 @@ define("BAIKAL_DAV_LDAP_DISPLAYNAME_ATTR", 'cn');
 define("BAIKAL_DAV_LDAP_EMAIL_ATTR", 'mail');
 
 # Baïkal Web admin password hash; Set via Baïkal Web Admin
-define("BAIKAL_ADMIN_PASSWORDHASH", '#PASSWORDHASH#');
+define("BAIKAL_ADMIN_PASSWORDHASH", '__PASSWORDHASH__');
