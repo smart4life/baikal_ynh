@@ -6,7 +6,7 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-# source ../settings/scripts/_common.sh
+source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 #=================================================
@@ -37,6 +37,12 @@ ynh_webpath_available $domain $path_url \
 	|| ynh_die "Path not available: ${domain}${path_url}"
 test ! -d $final_path \
 	|| ynh_die "There is already a directory: $final_path "
+
+# Check if .well-known is available for this domain.
+if is_url_handled "https://$domain/.well-known/caldav" || is_url_handled "https://$domain/.well-known/carddav"
+then
+    ynh_die --message="Another app already uses the domain $domain to serve a caldav/carddav feature. Please use another domain."
+fi
 
 #=================================================
 # STANDARD RESTORATION STEPS
