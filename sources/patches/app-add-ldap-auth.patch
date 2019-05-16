@@ -1,18 +1,18 @@
 diff --git a/Core/Frameworks/Baikal/Core/Server.php b/Core/Frameworks/Baikal/Core/Server.php
-index 8026854..8d306fe 100644
+index 957cac3..fcc2e3c 100644
 --- a/Core/Frameworks/Baikal/Core/Server.php
 +++ b/Core/Frameworks/Baikal/Core/Server.php
 @@ -133,6 +133,8 @@ class Server {
  
          if ($this->authType === 'Basic') {
              $authBackend = new \Baikal\Core\PDOBasicAuth($this->pdo, $this->authRealm);
-+	} elseif ($this->authType === 'LDAP-UserBind') {
++        } elseif ($this->authType === 'LDAP-UserBind') {
 +            $authBackend = new \Baikal\Core\LDAPUserBindAuth($this->pdo, $this->authRealm);
          } else {
              $authBackend = new \Sabre\DAV\Auth\Backend\PDO($this->pdo);
              $authBackend->setRealm($this->authRealm);
 diff --git a/Core/Frameworks/Baikal/Model/Config/Standard.php b/Core/Frameworks/Baikal/Model/Config/Standard.php
-index 6107377..39f90bd 100644
+index 2e07f44..948b5be 100644
 --- a/Core/Frameworks/Baikal/Model/Config/Standard.php
 +++ b/Core/Frameworks/Baikal/Model/Config/Standard.php
 @@ -46,6 +46,22 @@ class Standard extends \Baikal\Model\Config {
@@ -53,8 +53,8 @@ index 6107377..39f90bd 100644
          $oMorpho->add(new \Formal\Element\Listbox([
              "prop"    => "BAIKAL_DAV_AUTH_TYPE",
              "label"   => "WebDAV authentication type",
--            "options" => [ "Digest", "Basic" ]
-+            "options" => [ "Digest", "Basic", "LDAP-UserBind" ]
+-            "options" => ["Digest", "Basic"]
++            "options" => ["Digest", "Basic", "LDAP-UserBind"]
 +        ]));
 +
 +        $oMorpho->add(new \Formal\Element\Text([
