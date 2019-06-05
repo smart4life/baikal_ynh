@@ -12,36 +12,42 @@ source /usr/share/yunohost/helpers
 #=================================================
 # LOAD SETTINGS
 #=================================================
-ynh_print_info "Loading installation settings..."
+ynh_script_progression --message="Loading installation settings..." --weight=2
 
 app=$YNH_APP_INSTANCE_NAME
 
-domain=$(ynh_app_setting_get $app domain)
-path_url=$(ynh_app_setting_get $app path)
-final_path=$(ynh_app_setting_get $app final_path)
-db_name=$(ynh_app_setting_get $app db_name)
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+path_url=$(ynh_app_setting_get --app=$app --key=path)
+final_path=$(ynh_app_setting_get --app=$app --key=final_path)
+db_name=$(ynh_app_setting_get --app=$app --key=db_name)
+
+#=================================================
+# CHECK VERSION
+#=================================================
+
+upgrade_type=$(ynh_check_app_version_changed)
 
 #=================================================
 # ENSURE DOWNWARD COMPATIBILITY
 #=================================================
-ynh_print_info "Ensuring downward compatibility..."
+ynh_script_progression --message="Ensuring downward compatibility..."
 
 # If final_path doesn't exist, create it
-if [ -z $final_path ]; then
+if [ -z "$final_path" ]; then
 	final_path=/var/www/$app
-	ynh_app_setting_set $app final_path $final_path
+	ynh_app_setting_set --app=$app --key=final_path --value=$final_path
 fi
 
 # If db_name doesn't exist, create it
-if [ -z $db_name ]; then
-	db_name=$(ynh_sanitize_dbid $app)
-	ynh_app_setting_set $app db_name $db_name
+if [ -z "$db_name" ]; then
+	db_name=$(ynh_sanitize_dbid --db_name=$app)
+	ynh_app_setting_set --app=$app --key=db_name --value=$db_name
 fi
 
 #=================================================
 # BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
 #=================================================
-ynh_print_info "Backing up the app before upgrading (may take a while)..."
+ynh_script_progression --message="Backing up the app before upgrading (may take a while)..." --weight=4
 
 # Backup the current version of the app
 ynh_backup_before_upgrade
@@ -57,22 +63,26 @@ ynh_abort_if_errors
 #=================================================
 
 # Normalize the URL path syntax
-path_url=$(ynh_normalize_url_path $path_url)
+path_url=$(ynh_normalize_url_path --path_url=$path_url)
 
 #=================================================
 # STANDARD UPGRADE STEPS
 #=================================================
 # DOWNLOAD, CHECK AND UNPACK SOURCE
 #=================================================
-ynh_print_info "Upgrading source files..."
 
-# Download, check integrity, uncompress and patch the source from app.src
-ynh_setup_source "$final_path"
+if [ "$upgrade_type" == "UPGRADE_APP" ]
+then
+	ynh_script_progression --message="Upgrading source files..." --weight=3
+
+	# Download, check integrity, uncompress and patch the source from app.src
+	ynh_setup_source --dest_dir="$final_path"
+fi
 
 #=================================================
 # NGINX CONFIGURATION
 #=================================================
-ynh_print_info "Upgrading nginx web server configuration..."
+ynh_script_progression --message="Upgrading nginx web server configuration..."
 
 # Create a dedicated nginx config
 ynh_add_nginx_config
@@ -80,15 +90,15 @@ ynh_add_nginx_config
 #=================================================
 # CREATE DEDICATED USER
 #=================================================
-ynh_print_info "Making sure dedicated system user exists..."
+ynh_script_progression --message="Making sure dedicated system user exists..."
 
 # Create a dedicated user (if not existing)
-ynh_system_user_create $app
+ynh_system_user_create --username=$app
 
 #=================================================
 # PHP-FPM CONFIGURATION
 #=================================================
-ynh_print_info "Upgrading php-fpm configuration..."
+ynh_script_progression --message="Upgrading php-fpm configuration..." --weight=2
 
 # Create a dedicated php-fpm config
 ynh_add_fpm_config
@@ -98,59 +108,63 @@ ynh_add_fpm_config
 #=================================================
 # UPGRADE BAIKAL
 #=================================================
-ynh_print_info "Upgrading baikal..."
 
-# Run Baikal upgrade
-php "${final_path}/bin/upgrade.sh"
+if [ "$upgrade_type" == "UPGRADE_APP" ]
+then
+	ynh_script_progression --message="Upgrading baikal..."
 
-# Cleanup old baikal-admin sessions
-# since we may have changed owner of the session file
-grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
+	# Run Baikal upgrade
+	php "${final_path}/bin/upgrade.sh"
 
-#=================================================
-# UPGRADE BAIKAL CONFIGURATION
-#=================================================
-ynh_print_info "Upgrading baikal configuration..."
+	# Cleanup old baikal-admin sessions
+	# since we may have changed owner of the session file
+	grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
 
-bk_conf="${final_path}/Specific/config.php"
+	#=================================================
+	# UPGRADE BAIKAL CONFIGURATION
+	#=================================================
+	ynh_script_progression --message="Upgrading baikal configuration..." --weight=2
 
-# Verify the checksum and backup the file if it's different
-ynh_backup_if_checksum_is_different "$bk_conf"
+	bk_conf="${final_path}/Specific/config.php"
 
-cp ../conf/config.php "$bk_conf"
+	# Verify the checksum and backup the file if it's different
+	ynh_backup_if_checksum_is_different --file="$bk_conf"
 
-ynh_replace_string "__TIMEZONE__" "$(cat /etc/timezone)" "$bk_conf"
+	cp ../conf/config.php "$bk_conf"
 
-password_hash=$(ynh_app_setting_get $app password_hash)
-# If the password_hash is not in the app's config, recreate it from the password.
-if [ -z "$password_hash" ]; then
-    password=$(ynh_app_setting_get $app password)
-    password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
-    ynh_app_setting_set $app password_hash $password_hash
+	ynh_replace_string --match_string="__TIMEZONE__" --replace_string="$(cat /etc/timezone)" --target_file="$bk_conf"
+
+	password_hash=$(ynh_app_setting_get $app password_hash)
+	# If the password_hash is not in the app's config, recreate it from the password.
+	if [ -z "$password_hash" ]; then
+		password=$(ynh_app_setting_get --app=$app --key=password)
+		password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
+		ynh_app_setting_set --app=$app --key=password_hash --value=$password_hash
+	fi
+	ynh_replace_string --match_string="__PASSWORDHASH__" --replace_string="${password_hash}" --target_file="$bk_conf"
+
+	# Store the config file checksum into the app settings
+	ynh_store_file_checksum --file="$bk_conf"
+
+	bk_conf="${final_path}/Specific/config.system.php"
+
+	# Verify the checksum and backup the file if it's different
+	ynh_backup_if_checksum_is_different --file="$bk_conf"
+
+	cp ../conf/config.system.php "$bk_conf"
+
+	ynh_replace_string --match_string="__PATH__" --replace_string="$path_url" --target_file="$bk_conf"
+	ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
+	ynh_replace_string --match_string="__DBUSER__" --replace_string="$db_name" --target_file="$bk_conf"
+	db_pwd=$(ynh_app_setting_get $app mysqlpwd)
+	ynh_replace_string --match_string="__DBPASS__" --replace_string="$db_pwd" --target_file="$bk_conf"
+
+	deskey=$(ynh_app_setting_get $app deskey)
+	ynh_replace_string --match_string="__DESKEY__" --replace_string="$deskey" --target_file="$bk_conf"
+
+	# Store the config file checksum into the app settings
+	ynh_store_file_checksum --file="$bk_conf"
 fi
-ynh_replace_string "__PASSWORDHASH__" "${password_hash}" "$bk_conf"
-
-# Store the config file checksum into the app settings
-ynh_store_file_checksum "$bk_conf"
-
-bk_conf="${final_path}/Specific/config.system.php"
-
-# Verify the checksum and backup the file if it's different
-ynh_backup_if_checksum_is_different "$bk_conf"
-
-cp ../conf/config.system.php "$bk_conf"
-
-ynh_replace_string "__PATH__" "$path_url" "$bk_conf"
-ynh_replace_string "__DBNAME__" "$db_name" "$bk_conf"
-ynh_replace_string "__DBUSER__" "$db_name" "$bk_conf"
-db_pwd=$(ynh_app_setting_get $app mysqlpwd)
-ynh_replace_string "__DBPASS__" "$db_pwd" "$bk_conf"
-
-deskey=$(ynh_app_setting_get $app deskey)
-ynh_replace_string "__DESKEY__" "$deskey" "$bk_conf"
-
-# Store the config file checksum into the app settings
-ynh_store_file_checksum "$bk_conf"
 
 #=================================================
 # GENERIC FINALIZATION
@@ -166,22 +180,22 @@ chmod 640 "$final_path/Specific/"{config.php,config.system.php}
 #=================================================
 # SETUP SSOWAT
 #=================================================
-ynh_print_info "Upgrading SSOwat configuration..."
+ynh_script_progression --message="Configuring SSOwat..." --weight=2
 
 # Allow public access on /
-ynh_app_setting_set $app skipped_uris "/"
+ynh_app_setting_set --app=$app --key=skipped_uris --value="/"
 # But restrain on /admin
-ynh_app_setting_set $app protected_uris "/admin/"
+ynh_app_setting_set --app=$app --key=protected_uris --value="/admin/"
 
 #=================================================
 # RELOAD NGINX
 #=================================================
-ynh_print_info "Reloading nginx web server..."
+ynh_script_progression --message="Reloading nginx web server..."
 
-systemctl reload nginx
+ynh_systemd_action --service_name=nginx --action=reload
 
 #=================================================
 # END OF SCRIPT
 #=================================================
 
-ynh_print_info "Upgrade of $app completed"
+ynh_script_progression --message="Upgrade of $app completed" --last
