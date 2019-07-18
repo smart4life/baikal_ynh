@@ -1,6 +1,13 @@
 #!/bin/bash
 
 #=================================================
+# COMMON VARIABLES
+#=================================================
+
+# dependencies used by the app
+pkg_dependencies="php-xml php-mbstring php-mysql"
+
+#=================================================
 # EXPERIMENTAL HELPERS
 #=================================================
 
