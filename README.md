@@ -10,7 +10,7 @@ If you don't have YunoHost, please see [here](https://yunohost.org/#/install) to
 [Baïkal](http://baikal-server.com/) is a CalDAV and CardDAV server, based on
 sabre/dav, that includes an administration interface for easy management.
 
-**Shipped version:** 0.4.6
+**Shipped version:** 0.5.3
 
 ## Screenshots
 
@@ -36,9 +36,9 @@ this package:
 
 #### Supported architectures
 
-* x86-64b - [![Build Status](https://ci-apps.yunohost.org/ci/logs/baikal%20%28Official%29.svg)](https://ci-apps.yunohost.org/ci/apps/baikal/)
-* ARMv8-A - [![Build Status](https://ci-apps-arm.yunohost.org/ci/logs/baikal%20%28Official%29.svg)](https://ci-apps-arm.yunohost.org/ci/apps/baikal/)
-* Jessie x86-64b - [![Build Status](https://ci-stretch.nohost.me/ci/logs/baikal%20%28Official%29.svg)](https://ci-stretch.nohost.me/ci/apps/baikal/)
+* x86-64b - [![Build Status](https://ci-apps.yunohost.org/ci/logs/baikal%20%28Apps%29.svg)](https://ci-apps.yunohost.org/ci/apps/baikal/)
+* ARMv8-A - [![Build Status](https://ci-apps-arm.yunohost.org/ci/logs/baikal%20%28Apps%29.svg)](https://ci-apps-arm.yunohost.org/ci/apps/baikal/)
+* Jessie x86-64b - [![Build Status](https://ci-stretch.nohost.me/ci/logs/baikal%20%28Apps%29.svg)](https://ci-stretch.nohost.me/ci/apps/baikal/)
 
 ## Limitations
 
@@ -48,6 +48,7 @@ this package:
 
  * Report a bug: https://github.com/YunoHost-Apps/baikal_ynh/issues
  * Baïkal website: http://baikal-server.com/
+ * Upstream app repository: https://github.com/sabre-io/Baikal
  * YunoHost website: https://yunohost.org/
 
 ---

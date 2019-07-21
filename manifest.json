@@ -6,7 +6,7 @@
         "en": "Lightweight CalDAV+CardDAV server",
         "fr": "Serveur CalDAV+CardDAV léger"
     },
-    "version": "0.4.6~ynh1",
+    "version": "0.5.3~ynh1",
     "url": "http://baikal-server.com/",
     "license": "GPL-3.0",
     "maintainer": {
@@ -14,7 +14,7 @@
         "email": "julien.malik@paraiso.me"
     },
     "requirements": {
-        "yunohost": ">= 3.2.0"
+        "yunohost": ">= 3.5.0"
     },
     "multi_instance": false,
     "services": [
