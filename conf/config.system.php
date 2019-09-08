@@ -69,4 +69,4 @@ define("PROJECT_DB_MYSQL_PASSWORD", '__DBPASS__');
 define("BAIKAL_ENCRYPTION_KEY", '__DESKEY__');
 
 # The currently configured Baïkal version
-define("BAIKAL_CONFIGURED_VERSION", '0.5.3');
+define("BAIKAL_CONFIGURED_VERSION", '0.6.0');
