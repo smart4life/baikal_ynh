@@ -38,7 +38,7 @@ test ! -e "$final_path" || ynh_die "This path already contains a folder"
 ynh_webpath_register --app=$app --domain=$domain --path_url=$path_url
 
 # Check if .well-known is available for this domain.
-if is_url_handled "$domain" "/.well-known/caldav" || is_url_handled "$domain" "/.well-known/carddav"
+if is_url_handled --domain="$domain" --path="/.well-known/caldav" || is_url_handled --domain="$domain" --path="/.well-known/carddav"
 then
     ynh_die --message="Another app already uses the domain $domain to serve a caldav/carddav feature. Please use another domain."
 fi
