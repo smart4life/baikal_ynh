@@ -24,7 +24,7 @@ is_url_handled() {
 
     # Try to get the url with curl, and keep the http code and an eventual redirection url.
     local curl_output="$(curl --insecure --silent --output /dev/null \
-      --write-out '%{http_code};%{redirect_url}' https://127.0.0.1$path --header "Host: $domain")"
+      --write-out '%{http_code};%{redirect_url}' https://127.0.0.1$path --header "Host: $domain" --resolve $domain:443:127.0.0.1)"
 
     # Cut the output and keep only the first part to keep the http code
     local http_code="${curl_output%%;*}"
