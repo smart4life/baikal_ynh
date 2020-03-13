@@ -12,7 +12,7 @@ pkg_dependencies="php-xml php-mbstring php-mysql"
 #=================================================
 
 # Check if an URL is already handled
-# usage: is_url_handled URL
+# usage: is_url_handled --domain=DOMAIN --path=PATH_URI
 is_url_handled() {
     # Declare an array to define the options of this helper.
     local legacy_args=dp
