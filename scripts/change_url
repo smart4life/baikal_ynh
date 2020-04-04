@@ -52,7 +52,7 @@ fi
 if [ $change_domain -eq 1 ]
 then
 	# Check if .well-known is available for the new domain.
-	if is_url_handled "https://$new_domain/.well-known/caldav" || is_url_handled "https://$new_domain/.well-known/carddav"
+	if is_url_handled --domain="$new_domain" --path="/.well-known/caldav" || is_url_handled --domain="$new_domain" --path="/.well-known/carddav"
 	then
 		ynh_die --message="Another app already uses the domain $new_domain to serve a caldav/carddav feature. Please use another domain."
 	fi
