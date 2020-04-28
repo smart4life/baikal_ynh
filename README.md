@@ -17,6 +17,8 @@ sabre/dav, that includes an administration interface for easy management.
 ## Demo
 
 * [YunoHost demo](https://demo.yunohost.org/baikal/admin/)
+  * Accounts: 
+    * `demo/demo` then `admin/demo`
 
 ## Configuration
 
