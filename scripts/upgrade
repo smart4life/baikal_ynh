@@ -168,7 +168,7 @@ then
 
 	cp ../conf/config.system.php "$bk_conf"
 
-	ynh_replace_string --match_string="__PATH__" --replace_string="$path_url" --target_file="$bk_conf"
+	ynh_replace_string --match_string="__PATH__" --replace_string="${path_url%/}" --target_file="$bk_conf"
 	ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
 	ynh_replace_string --match_string="__DBUSER__" --replace_string="$db_name" --target_file="$bk_conf"
 	db_pwd=$(ynh_app_setting_get --app=$app --key=mysqlpwd)
