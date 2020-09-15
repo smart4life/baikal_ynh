@@ -116,20 +116,14 @@ ynh_mysql_connect_as --user=$db_name --password="$db_pwd" --database=$db_name \
 # CONFIGURE BAIKAL
 #=================================================
 
-bk_conf="${final_path}/Specific/config.php"
-cp ../conf/config.php "$bk_conf"
+bk_conf="${final_path}/config/baikal.yaml"
+cp ../conf/baikal.yaml "$bk_conf"
 
 ynh_replace_string --match_string="__TIMEZONE__" --replace_string="$(cat /etc/timezone)" --target_file="$bk_conf"
 # Create admin password hash
-password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
+password_hash=$(echo -n admin:BaikalDAV:$password | sha256sum | cut -d ' ' -f 1)
 ynh_replace_string --match_string="__PASSWORDHASH__" --replace_string="${password_hash}" --target_file="$bk_conf"
 ynh_app_setting_set --app=$app --key=password_hash --value=$password_hash
-
-# Store the config file checksum into the app settings
-ynh_store_file_checksum --file="$bk_conf"
-
-bk_conf="${final_path}/Specific/config.system.php"
-cp ../conf/config.system.php "$bk_conf"
 
 ynh_replace_string --match_string="__PATH__" --replace_string="${path_url%/}" --target_file="$bk_conf"
 ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
@@ -154,8 +148,8 @@ touch "${final_path}/Specific/INSTALL_DISABLED"
 
 # Set permissions
 chown -R root: "$final_path"
-chown $app "$final_path/Specific/"{config.php,config.system.php}
-chmod 640 "$final_path/Specific/"{config.php,config.system.php}
+chown $app "$final_path/config/baikal.yaml"
+chmod 640 "$final_path/config/baikal.yaml"
 
 #=================================================
 # SETUP SSOWAT

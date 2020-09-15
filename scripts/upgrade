@@ -75,15 +75,19 @@ if [ "$upgrade_type" == "UPGRADE_APP" ]
 then
 	ynh_script_progression --message="Upgrading source files..." --weight=3
 
-	# Keep the Specific folder intact: https://sabre.io/baikal/upgrade/
+	# Keep the Specific and config folders intact: https://sabre.io/baikal/upgrade/
+	mkdir -p "$final_path/config"
 	temp_folder=$(mktemp -d)
 	mv "$final_path/Specific" "$temp_folder"
+	mv "$final_path/config" "$temp_folder"
 	# Download, check integrity, uncompress and patch the source from app.src
 	ynh_setup_source --dest_dir="$final_path"
 
 	ynh_secure_remove --file="$final_path/Specific"
+	ynh_secure_remove --file="$final_path/config"
 
 	mv "$temp_folder/Specific" "$final_path"
+	mv "$temp_folder/config" "$final_path"
 	ynh_secure_remove --file="$temp_folder"
 fi
 
@@ -127,29 +131,16 @@ ynh_add_fpm_config
 
 if [ "$upgrade_type" == "UPGRADE_APP" ]
 then
-	ynh_script_progression --message="Upgrading baikal..."
-
-	# Run Baikal upgrade
-	php"${phpversion}" "${final_path}/bin/upgrade.sh"
-
-	# Cleanup old baikal-admin sessions
-	# since we may have changed owner of the session file
-	grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
-
 	#=================================================
 	# UPGRADE BAIKAL CONFIGURATION
 	#=================================================
 	ynh_script_progression --message="Upgrading baikal configuration..." --weight=2
 
-	bk_conf="${final_path}/Specific/config.php"
-
-	# Verify the checksum and backup the file if it's different
+	bk_conf="${final_path}/config/baikal.yaml"
 	ynh_backup_if_checksum_is_different --file="$bk_conf"
-
-	cp ../conf/config.php "$bk_conf"
+	cp ../conf/baikal.yaml "$bk_conf"
 
 	ynh_replace_string --match_string="__TIMEZONE__" --replace_string="$(cat /etc/timezone)" --target_file="$bk_conf"
-
 	password_hash=$(ynh_app_setting_get --app=$app --key=password_hash)
 	# If the password_hash is not in the app's config, recreate it from the password.
 	if [ -z "$password_hash" ]; then
@@ -159,28 +150,33 @@ then
 	fi
 	ynh_replace_string --match_string="__PASSWORDHASH__" --replace_string="${password_hash}" --target_file="$bk_conf"
 
-	# Store the config file checksum into the app settings
-	ynh_store_file_checksum --file="$bk_conf"
-
-	bk_conf="${final_path}/Specific/config.system.php"
-
-	# Verify the checksum and backup the file if it's different
-	ynh_backup_if_checksum_is_different --file="$bk_conf"
-
-	cp ../conf/config.system.php "$bk_conf"
-
 	ynh_replace_string --match_string="__PATH__" --replace_string="${path_url%/}" --target_file="$bk_conf"
 	ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
 	ynh_replace_string --match_string="__DBUSER__" --replace_string="$db_name" --target_file="$bk_conf"
 	db_pwd=$(ynh_app_setting_get --app=$app --key=mysqlpwd)
 	ynh_replace_string --match_string="__DBPASS__" --replace_string="$db_pwd" --target_file="$bk_conf"
 
-
 	deskey=$(ynh_app_setting_get --app=$app --key=encrypt_key)
+	ynh_app_setting_set --app=$app --key=encrypt_key --value="$deskey"
 	ynh_replace_string --match_string="__DESKEY__" --replace_string="$deskey" --target_file="$bk_conf"
+
+	#=================================================
+	# UPGRADE BAIKAL
+	#=================================================
+	ynh_script_progression --message="Upgrading baikal..."
+
+	# Run Baikal upgrade
+	php"${phpversion}" "${final_path}/bin/upgrade.sh"
+
+	# Cleanup old baikal-admin sessions
+	# since we may have changed owner of the session file
+	grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
 
 	# Store the config file checksum into the app settings
 	ynh_store_file_checksum --file="$bk_conf"
+	# Remove checksums of old files
+	ynh_delete_file_checksum --file="${final_path}/Specific/config.php"
+	ynh_delete_file_checksum --file="${final_path}/Specific/config.system.php"
 fi
 
 #=================================================
@@ -191,8 +187,8 @@ fi
 
 # Set permissions
 chown -R root: "$final_path"
-chown $app "$final_path/Specific/"{config.php,config.system.php}
-chmod 640 "$final_path/Specific/"{config.php,config.system.php}
+chown $app "$final_path/config/baikal.yaml"
+chmod 640 "$final_path/config/baikal.yaml"
 
 #=================================================
 # SETUP SSOWAT

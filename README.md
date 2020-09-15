@@ -10,7 +10,7 @@ If you don't have YunoHost, please see [here](https://yunohost.org/#/install) to
 [Baïkal](http://baikal-server.com/) is a CalDAV and CardDAV server, based on
 sabre/dav, that includes an administration interface for easy management.
 
-**Shipped version:** 0.6.1
+**Shipped version:** 0.7.1
 
 ## Screenshots
 
@@ -44,6 +44,9 @@ this package:
 ## Limitations
 
 ## Additional information
+
+* There is a breaking change in the management of the administrator password when upgrading to 0.7.0. You must change the admin password!
+* To be able to change the admin password, please visit the page: `https://you.domain.tld/yunohost/admin/#/apps/baikal/actions` and set a new password.
 
 ## Links
 
