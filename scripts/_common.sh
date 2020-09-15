@@ -5,7 +5,9 @@
 #=================================================
 
 # dependencies used by the app
-pkg_dependencies="php-xml php-mbstring php-mysql"
+YNH_PHP_VERSION="7.3"
+
+pkg_dependencies="php${YNH_PHP_VERSION}-xml php${YNH_PHP_VERSION}-mbstring php${YNH_PHP_VERSION}-mysql"
 
 #=================================================
 # EXPERIMENTAL HELPERS

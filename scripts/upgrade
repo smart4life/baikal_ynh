@@ -94,6 +94,7 @@ ynh_script_progression --message="Upgrading nginx web server configuration..."
 
 # Create a dedicated nginx config
 ynh_add_nginx_config
+phpversion=$(ynh_app_setting_get --app=$app --key=phpversion)
 
 #=================================================
 # UPGRADE DEPENDENCIES
@@ -129,7 +130,7 @@ then
 	ynh_script_progression --message="Upgrading baikal..."
 
 	# Run Baikal upgrade
-	php "${final_path}/bin/upgrade.sh"
+	php"${phpversion}" "${final_path}/bin/upgrade.sh"
 
 	# Cleanup old baikal-admin sessions
 	# since we may have changed owner of the session file
