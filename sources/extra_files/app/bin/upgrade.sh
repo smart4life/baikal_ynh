@@ -41,15 +41,22 @@ if (!file_exists(PROJECT_PATH_ROOT . 'vendor/')) {
 }
 
 require PROJECT_PATH_ROOT . "vendor/autoload.php";
+use Symfony\Component\Yaml\Yaml;
 
 # Extend VersionUpgrade for cli usage
 class CLIUpgrade extends \BaikalAdmin\Controller\Install\VersionUpgrade {
 
     function run() {
-        $sBaikalVersion = BAIKAL_VERSION;
-        $sBaikalConfiguredVersion = BAIKAL_CONFIGURED_VERSION;
+        try {
+            $config = Yaml::parseFile(PROJECT_PATH_CONFIG . "baikal.yaml");
+        } catch (\Exception $e) {
+            $this->output('Error reading baikal.yaml file : ' . $e->getMessage());
+        }
 
-        if (BAIKAL_CONFIGURED_VERSION === BAIKAL_VERSION) {
+        $sBaikalVersion = BAIKAL_VERSION;
+        $sBaikalConfiguredVersion = $config['system']['configured_version'];
+
+        if (isset($config['system']['configured_version']) && $sBaikalConfiguredVersion === BAIKAL_VERSION) {
             $this->output("Baïkal is already configured for version " . $sBaikalVersion);
             return true;
         } else {
@@ -57,7 +64,7 @@ class CLIUpgrade extends \BaikalAdmin\Controller\Install\VersionUpgrade {
         }
 
         try {
-            $bSuccess = $this->upgrade(BAIKAL_CONFIGURED_VERSION, BAIKAL_VERSION);
+            $bSuccess = $this->upgrade($sBaikalConfiguredVersion, BAIKAL_VERSION);
         } catch (\Exception $e) {
             $bSuccess = false;
             $this->output("Uncaught exception during upgrade: " . (string)$e);
@@ -87,11 +94,6 @@ class CLIUpgrade extends \BaikalAdmin\Controller\Install\VersionUpgrade {
 
 # Bootstrap BaikalAdmin
 \BaikalAdmin\Framework::bootstrap();
-
-if (!defined("BAIKAL_CONFIGURED_VERSION") || !defined("BAIKAL_ADMIN_PASSWORDHASH")) {
-    echo "Baïkal is not properly configured!\n";
-    exit(1);
-}
 
 # Run the upgrade
 $oUpgrade = new CLIUpgrade();

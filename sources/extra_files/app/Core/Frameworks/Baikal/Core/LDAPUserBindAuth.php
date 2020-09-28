@@ -1,6 +1,7 @@
 <?php
 
 namespace Baikal\Core;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * This is an authentication backend that uses a ldap backend to authenticate user.
@@ -25,9 +26,10 @@ class LDAPUserBindAuth extends AbstractExternalAuth {
      * @return bool
      */
     public function validateUserPassExternal($username, $password) {
+        $config = Yaml::parseFile(PROJECT_PATH_CONFIG . "baikal.yaml");
 
         /* create ldap connection */
-        $conn = ldap_connect(BAIKAL_DAV_LDAP_URI);
+        $conn = ldap_connect($config['system']['dav_ldap_uri']);
         if (!$conn)
             return false;
         if (!ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3))
@@ -38,7 +40,7 @@ class LDAPUserBindAuth extends AbstractExternalAuth {
          * this raise a secuity issue because in the stack trace is the password of user readable
          */
         $arr = explode('@', $username, 2);
-        $dn = str_replace('%n', $username, BAIKAL_DAV_LDAP_DN_TEMPLATE);
+        $dn = str_replace('%n', $username, $config['system']['dav_ldap_dn_template']);
         $dn = str_replace('%u', $arr[0], $dn);
         if(isset($arr[1])) $dn = str_replace('%d', $arr[1], $dn);         
 
@@ -52,12 +54,14 @@ class LDAPUserBindAuth extends AbstractExternalAuth {
 
         /* read displayname and email from user */
         $this->accountValues = array();
-        $sr = ldap_read($conn, $dn, '(objectclass=*)', array(BAIKAL_DAV_LDAP_DISPLAYNAME_ATTR, BAIKAL_DAV_LDAP_EMAIL_ATTR));
+        $dav_ldap_displayname_attr = $config['system']['dav_ldap_displayname_attr'];
+        $dav_ldap_email_attr = $config['system']['dav_ldap_email_attr'];
+        $sr = ldap_read($conn, $dn, '(objectclass=*)', array($dav_ldap_displayname_attr, $dav_ldap_email_attr));
         $entry = ldap_get_entries($conn, $sr);
-        if (isset($entry[0][BAIKAL_DAV_LDAP_DISPLAYNAME_ATTR][0]))
-             $this->accountValues['displayname'] = $entry[0][BAIKAL_DAV_LDAP_DISPLAYNAME_ATTR][0];
-        if (isset($entry[0][BAIKAL_DAV_LDAP_EMAIL_ATTR][0]))
-             $this->accountValues['email'] = $entry[0][BAIKAL_DAV_LDAP_EMAIL_ATTR][0];
+        if (isset($entry[0][$dav_ldap_displayname_attr][0]))
+             $this->accountValues['displayname'] = $entry[0][$dav_ldap_displayname_attr][0];
+        if (isset($entry[0][$dav_ldap_email_attr][0]))
+             $this->accountValues['email'] = $entry[0][$dav_ldap_email_attr][0];
 
         /* close */
         ldap_close($conn);
