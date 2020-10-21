@@ -3,8 +3,8 @@
     "name": "Baikal",
     "packaging_format": 1,
     "description": {
-        "en": "Lightweight CalDAV+CardDAV server",
-        "fr": "Serveur CalDAV+CardDAV léger"
+        "en": "Lightweight CalDAV and CardDAV server",
+        "fr": "Serveur CalDAV et CardDAV léger"
     },
     "version": "0.7.1~ynh1",
     "url": "http://baikal-server.com/",
