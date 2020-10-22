@@ -29,8 +29,7 @@ sabre/dav, that includes an administration interface for easy management.
 
 ## YunoHost specific features
 
-In addition to Baïkal core features, the following are made available with
-this package:
+In addition to Baïkal core features, the following are made available with this package:
 
  * Serve `/.well-known` paths for CalDAV and CardDAV on the domain
 
@@ -38,7 +37,7 @@ this package:
 
 #### Supported architectures
 
-* x86-64b - [![Build Status](https://ci-apps.yunohost.org/ci/logs/baikal%20%28Apps%29.svg)](https://ci-apps.yunohost.org/ci/apps/baikal/)
+* x86-64 - [![Build Status](https://ci-apps.yunohost.org/ci/logs/baikal%20%28Apps%29.svg)](https://ci-apps.yunohost.org/ci/apps/baikal/)
 * ARMv8-A - [![Build Status](https://ci-apps-arm.yunohost.org/ci/logs/baikal%20%28Apps%29.svg)](https://ci-apps-arm.yunohost.org/ci/apps/baikal/)
 
 ## Limitations
@@ -57,8 +56,7 @@ this package:
 
 ---
 
-Developers infos
-----------------
+## Developers infos
 
 Please do your pull request to the [testing branch](https://github.com/YunoHost-Apps/baikal_ynh/tree/testing).
 
