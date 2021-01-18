@@ -47,7 +47,7 @@ fi
 #=================================================
 # BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
 #=================================================
-ynh_script_progression --message="Backing up the app before upgrading (may take a while)..." --weight=4
+ynh_script_progression --message="Backing up Baïkal before upgrading (may take a while)..." --weight=4
 
 # Backup the current version of the app
 ynh_backup_before_upgrade
@@ -57,13 +57,6 @@ ynh_clean_setup () {
 }
 # Exit if an error occurs during the execution of the script
 ynh_abort_if_errors
-
-#=================================================
-# CHECK THE PATH
-#=================================================
-
-# Normalize the URL path syntax
-path_url=$(ynh_normalize_url_path --path_url=$path_url)
 
 #=================================================
 # STANDARD UPGRADE STEPS
@@ -94,9 +87,9 @@ fi
 #=================================================
 # NGINX CONFIGURATION
 #=================================================
-ynh_script_progression --message="Upgrading nginx web server configuration..."
+ynh_script_progression --message="Upgrading NGINX web server configuration..."
 
-# Create a dedicated nginx config
+# Create a dedicated NGINX config
 ynh_add_nginx_config
 phpversion=$(ynh_app_setting_get --app=$app --key=phpversion)
 
@@ -118,9 +111,9 @@ ynh_system_user_create --username=$app
 #=================================================
 # PHP-FPM CONFIGURATION
 #=================================================
-ynh_script_progression --message="Upgrading php-fpm configuration..." --weight=2
+ynh_script_progression --message="Upgrading PHP-FPM configuration..." --weight=2
 
-# Create a dedicated php-fpm config
+# Create a dedicated PHP-FPM config
 ynh_add_fpm_config
 
 #=================================================
@@ -134,7 +127,7 @@ then
 	#=================================================
 	# UPGRADE BAIKAL CONFIGURATION
 	#=================================================
-	ynh_script_progression --message="Upgrading baikal configuration..." --weight=2
+	ynh_script_progression --message="Upgrading Baïkal configuration..." --weight=2
 
 	bk_conf="${final_path}/config/baikal.yaml"
 	ynh_backup_if_checksum_is_different --file="$bk_conf"
@@ -163,7 +156,7 @@ then
 	#=================================================
 	# UPGRADE BAIKAL
 	#=================================================
-	ynh_script_progression --message="Upgrading baikal..."
+	ynh_script_progression --message="Upgrading Baïkal..."
 
 	# Run Baikal upgrade
 	php"${phpversion}" "${final_path}/bin/upgrade.sh"
@@ -195,15 +188,21 @@ chmod 640 "$final_path/config/baikal.yaml"
 #=================================================
 ynh_script_progression --message="Configuring SSOwat..." --weight=2
 
-# Allow public access on /
-ynh_app_setting_set --app=$app --key=skipped_uris --value="/"
-# But restrain on /admin
-ynh_app_setting_set --app=$app --key=protected_uris --value="/admin/"
+# Upgrade from the legacy permissions system
+protected_uris=$(ynh_app_setting_get --app="$app" --key=protected_uris)
+if [ -n "${protected_uris}" ]; then
+    ynh_app_setting_delete --app="$app" --key=protected_uris
+
+    # Allow public access on /
+    ynh_permission_update --permission "main"  --add "visitors"
+    # But restrain on /admin
+    ynh_permission_create --permission "admin" --url "/admin" --allowed "all_users"
+fi
 
 #=================================================
 # RELOAD NGINX
 #=================================================
-ynh_script_progression --message="Reloading nginx web server..."
+ynh_script_progression --message="Reloading NGINX web server..."
 
 ynh_systemd_action --service_name=nginx --action=reload
 
@@ -211,4 +210,4 @@ ynh_systemd_action --service_name=nginx --action=reload
 # END OF SCRIPT
 #=================================================
 
-ynh_script_progression --message="Upgrade of $app completed" --last
+ynh_script_progression --message="Upgrade of Baïkal completed" --last
