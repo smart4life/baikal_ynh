@@ -188,10 +188,16 @@ chmod 640 "$final_path/config/baikal.yaml"
 #=================================================
 ynh_script_progression --message="Configuring SSOwat..." --weight=2
 
-# Allow public access on /
-ynh_app_setting_set --app=$app --key=skipped_uris --value="/"
-# But restrain on /admin
-ynh_app_setting_set --app=$app --key=protected_uris --value="/admin/"
+# Upgrade from the legacy permissions system
+protected_uris=$(ynh_app_setting_get --app="$app" --key=protected_uris)
+if [ -n "${protected_uris}" ]; then
+    ynh_app_setting_delete --app="$app" --key=protected_uris
+
+    # Allow public access on /
+    ynh_permission_update --permission "main"  --add "visitors"
+    # But restrain on /admin
+    ynh_permission_create --permission "admin" --url "/admin" --allowed "all_users"
+fi
 
 #=================================================
 # RELOAD NGINX
