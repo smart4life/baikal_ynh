@@ -1,43 +1,46 @@
-#
-# Common variables
-#
+#!/bin/bash
 
-# Baikal version
-VERSION=0.4.4
+#=================================================
+# COMMON VARIABLES
+#=================================================
 
-# Baikal source archive checksum
-BAIKAL_SOURCE_SHA256="cced612353862bce532ed458eda0675b5e1e5790f92969bf13992c6567943efc"
+# dependencies used by the app
+YNH_PHP_VERSION="7.3"
 
-# Remote URL to fetch Baikal source archive
-BAIKAL_SOURCE_URL="https://github.com/fruux/Baikal/releases/download/${VERSION}/baikal-${VERSION}.zip"
+pkg_dependencies="php${YNH_PHP_VERSION}-xml php${YNH_PHP_VERSION}-mbstring php${YNH_PHP_VERSION}-mysql"
 
-# App package root directory should be the parent folder
-PKGDIR=$(cd ../; pwd)
+#=================================================
+# EXPERIMENTAL HELPERS
+#=================================================
 
-#
-# Common helpers
-#
+# Check if an URL is already handled
+# usage: is_url_handled --domain=DOMAIN --path=PATH_URI
+is_url_handled() {
+    # Declare an array to define the options of this helper.
+    local legacy_args=dp
+    declare -Ar args_array=( [d]=domain= [p]=path= )
+    local domain
+    local path
+    # Manage arguments with getopts
+    ynh_handle_getopts_args "$@"
 
-# Source app helpers
-source /usr/share/yunohost/helpers
+    # Try to get the url with curl, and keep the http code and an eventual redirection url.
+    local curl_output="$(curl --insecure --silent --output /dev/null \
+      --write-out '%{http_code};%{redirect_url}' https://127.0.0.1$path --header "Host: $domain" --resolve $domain:443:127.0.0.1)"
 
-# Download and extract Baikal sources to the given directory
-# usage: extract_baikal DESTDIR
-extract_baikal() {
-  local DESTDIR=$1
-  local bk_archive="${DESTDIR}/baikal.zip"
+    # Cut the output and keep only the first part to keep the http code
+    local http_code="${curl_output%%;*}"
+    # Do the same thing but keep the second part, the redirection url
+    local redirection="${curl_output#*;}"
 
-  wget -q -O "$bk_archive" "$BAIKAL_SOURCE_URL" \
-    || ynh_die "Unable to download Baikal archive"
-  echo "$BAIKAL_SOURCE_SHA256 $bk_archive" | sha256sum -c >/dev/null \
-    || ynh_die "Invalid checksum of downloaded archive"
-  unzip -q "$bk_archive" -d "$DESTDIR" \
-    || ynh_die "Unable to extract Baikal archive"
-  mv "${DESTDIR}/baikal/"* "$DESTDIR"
-  rm -rf "$bk_archive" "${DESTDIR}/baikal"
-
-  # apply patches
-  (cd "$DESTDIR" \
-   && for p in ${PKGDIR}/patches/*.patch; do patch -p1 < $p; done) \
-    || die "Unable to apply patches to Baikal"
+    # Return 1 if the url isn't handled.
+    # Which means either curl got a 404 (or the admin) or the sso.
+    # A handled url should redirect to a publicly accessible url.
+    # Return 1 if the url has returned 404
+    if [ "$http_code" = "404" ] || [[ $redirection =~ "/yunohost/admin" ]]; then
+        return 1
+    # Return 1 if the url is redirected to the SSO
+    elif [[ $redirection =~ "/yunohost/sso" ]]; then
+        return 1
+    fi
 }

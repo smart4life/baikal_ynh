@@ -1,58 +1,213 @@
 #!/bin/bash
 
-set -u
+#=================================================
+# GENERIC START
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Load common variables and helpers
-. ./_common.sh
+source _common.sh
+source /usr/share/yunohost/helpers
 
-# Set app specific variables
-app=${!#}
-dbname=$app
-dbuser=$app
+#=================================================
+# LOAD SETTINGS
+#=================================================
+ynh_script_progression --message="Loading installation settings..." --weight=2
 
-# Retrieve arguments
-domain=$(ynh_app_setting_get "$app" domain)
-path=$(ynh_app_setting_get "$app" path)
-path=${path%/}
+app=$YNH_APP_INSTANCE_NAME
 
-# Check destination directory
-DESTDIR="/var/www/$app"
-[[ ! -d $DESTDIR ]] && ynh_die \
-"The destination directory '$DESTDIR' does not exist.\
- The app is not correctly installed, you should remove it first."
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+path_url=$(ynh_app_setting_get --app=$app --key=path)
+final_path=$(ynh_app_setting_get --app=$app --key=final_path)
+db_name=$(ynh_app_setting_get --app=$app --key=db_name)
 
-# Create tmp directory and fetch new app inside
-TMPDIR=$(ynh_mkdir_tmp)
-extract_baikal "$TMPDIR"
+#=================================================
+# CHECK VERSION
+#=================================================
 
-# Get Specific folder from current installation
-# FIXME: config.php and config.system.php are not updated with possible
-# new or changed configurations
-rm -rf "${TMPDIR}/Specific"
-sudo cp -r "${DESTDIR}/Specific" "$TMPDIR"
-sudo chown -hR "${USER}" "${TMPDIR}/Specific"
+upgrade_type=$(ynh_check_app_version_changed)
 
-# Run Baikal upgrade from tmp directory
-cp -r ../sources/bin "$TMPDIR"
-php "${TMPDIR}/bin/upgrade.sh" \
-  || echo "The Baïkal upgrade failed, you should try to go to " \
-        "https://${domain}${path}/admin/install"
+#=================================================
+# ENSURE DOWNWARD COMPATIBILITY
+#=================================================
+ynh_script_progression --message="Ensuring downward compatibility..."
 
-# Install new app and set permissions
-sudo rm -rf "$DESTDIR"
-sudo mv "$TMPDIR" "$DESTDIR"
-sudo chown -R www-data: "$DESTDIR"
+# If final_path doesn't exist, create it
+if [ -z "$final_path" ]; then
+	final_path=/var/www/$app
+	ynh_app_setting_set --app=$app --key=final_path --value=$final_path
+fi
 
-# Copy and set nginx configuration
-nginx_conf="/etc/nginx/conf.d/${domain}.d/${app}.conf"
-sed -i "s@#PATH#@${path}@g"        ../conf/nginx.conf
-sed -i "s@#LOCATION#@${path:-/}@g" ../conf/nginx.conf
-sed -i "s@#DESTDIR#@${DESTDIR}@g"  ../conf/nginx.conf
-sudo cp ../conf/nginx.conf "$nginx_conf"
+# If db_name doesn't exist, create it
+if [ -z "$db_name" ]; then
+	db_name=$(ynh_sanitize_dbid --db_name=$app)
+	ynh_app_setting_set --app=$app --key=db_name --value=$db_name
+fi
 
-# Set SSOwat rules
-ynh_app_setting_set "$app" skipped_uris "/"
-ynh_app_setting_set "$app" protected_uris "/admin/"
+#=================================================
+# BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
+#=================================================
+ynh_script_progression --message="Backing up Baïkal before upgrading (may take a while)..." --weight=4
 
-# Reload services
-sudo service nginx reload || true
+# Backup the current version of the app
+ynh_backup_before_upgrade
+ynh_clean_setup () {
+	# restore it if the upgrade fails
+	ynh_restore_upgradebackup
+}
+# Exit if an error occurs during the execution of the script
+ynh_abort_if_errors
+
+#=================================================
+# STANDARD UPGRADE STEPS
+#=================================================
+# DOWNLOAD, CHECK AND UNPACK SOURCE
+#=================================================
+
+if [ "$upgrade_type" == "UPGRADE_APP" ]
+then
+	ynh_script_progression --message="Upgrading source files..." --weight=3
+
+	# Keep the Specific and config folders intact: https://sabre.io/baikal/upgrade/
+	mkdir -p "$final_path/config"
+	temp_folder=$(mktemp -d)
+	mv "$final_path/Specific" "$temp_folder"
+	mv "$final_path/config" "$temp_folder"
+	# Download, check integrity, uncompress and patch the source from app.src
+	ynh_setup_source --dest_dir="$final_path"
+
+	ynh_secure_remove --file="$final_path/Specific"
+	ynh_secure_remove --file="$final_path/config"
+
+	mv "$temp_folder/Specific" "$final_path"
+	mv "$temp_folder/config" "$final_path"
+	ynh_secure_remove --file="$temp_folder"
+fi
+
+#=================================================
+# NGINX CONFIGURATION
+#=================================================
+ynh_script_progression --message="Upgrading NGINX web server configuration..."
+
+# Create a dedicated NGINX config
+ynh_add_nginx_config
+phpversion=$(ynh_app_setting_get --app=$app --key=phpversion)
+
+#=================================================
+# UPGRADE DEPENDENCIES
+#=================================================
+ynh_script_progression --message="Upgrading dependencies..." --weight=5
+
+ynh_install_app_dependencies $pkg_dependencies
+
+#=================================================
+# CREATE DEDICATED USER
+#=================================================
+ynh_script_progression --message="Making sure dedicated system user exists..."
+
+# Create a dedicated user (if not existing)
+ynh_system_user_create --username=$app
+
+#=================================================
+# PHP-FPM CONFIGURATION
+#=================================================
+ynh_script_progression --message="Upgrading PHP-FPM configuration..." --weight=2
+
+# Create a dedicated PHP-FPM config
+ynh_add_fpm_config
+
+#=================================================
+# SPECIFIC UPGRADE
+#=================================================
+# UPGRADE BAIKAL
+#=================================================
+
+if [ "$upgrade_type" == "UPGRADE_APP" ]
+then
+	#=================================================
+	# UPGRADE BAIKAL CONFIGURATION
+	#=================================================
+	ynh_script_progression --message="Upgrading Baïkal configuration..." --weight=2
+
+	bk_conf="${final_path}/config/baikal.yaml"
+	ynh_backup_if_checksum_is_different --file="$bk_conf"
+	cp ../conf/baikal.yaml "$bk_conf"
+
+	ynh_replace_string --match_string="__TIMEZONE__" --replace_string="$(cat /etc/timezone)" --target_file="$bk_conf"
+	password_hash=$(ynh_app_setting_get --app=$app --key=password_hash)
+	# If the password_hash is not in the app's config, recreate it from the password.
+	if [ -z "$password_hash" ]; then
+		password=$(ynh_app_setting_get --app=$app --key=password)
+		password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
+		ynh_app_setting_set --app=$app --key=password_hash --value=$password_hash
+	fi
+	ynh_replace_string --match_string="__PASSWORDHASH__" --replace_string="${password_hash}" --target_file="$bk_conf"
+
+	ynh_replace_string --match_string="__PATH__" --replace_string="${path_url%/}" --target_file="$bk_conf"
+	ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
+	ynh_replace_string --match_string="__DBUSER__" --replace_string="$db_name" --target_file="$bk_conf"
+	db_pwd=$(ynh_app_setting_get --app=$app --key=mysqlpwd)
+	ynh_replace_string --match_string="__DBPASS__" --replace_string="$db_pwd" --target_file="$bk_conf"
+
+	deskey=$(ynh_app_setting_get --app=$app --key=encrypt_key)
+	ynh_app_setting_set --app=$app --key=encrypt_key --value="$deskey"
+	ynh_replace_string --match_string="__DESKEY__" --replace_string="$deskey" --target_file="$bk_conf"
+
+	#=================================================
+	# UPGRADE BAIKAL
+	#=================================================
+	ynh_script_progression --message="Upgrading Baïkal..."
+
+	# Run Baikal upgrade
+	php"${phpversion}" "${final_path}/bin/upgrade.sh"
+
+	# Cleanup old baikal-admin sessions
+	# since we may have changed owner of the session file
+	grep --files-with-matches --recursive "CSRF_TOKEN|s:" /var/lib/php/sessions | xargs rm -f
+
+	# Store the config file checksum into the app settings
+	ynh_store_file_checksum --file="$bk_conf"
+	# Remove checksums of old files
+	ynh_delete_file_checksum --file="${final_path}/Specific/config.php"
+	ynh_delete_file_checksum --file="${final_path}/Specific/config.system.php"
+fi
+
+#=================================================
+# GENERIC FINALIZATION
+#=================================================
+# SECURE FILES AND DIRECTORIES
+#=================================================
+
+# Set permissions
+chown -R root: "$final_path"
+chown $app "$final_path/config/baikal.yaml"
+chmod 640 "$final_path/config/baikal.yaml"
+
+#=================================================
+# SETUP SSOWAT
+#=================================================
+ynh_script_progression --message="Configuring SSOwat..." --weight=2
+
+# Upgrade from the legacy permissions system
+protected_uris=$(ynh_app_setting_get --app="$app" --key=protected_uris)
+if [ -n "${protected_uris}" ]; then
+    ynh_app_setting_delete --app="$app" --key=protected_uris
+
+    # Allow public access on /
+    ynh_permission_update --permission "main"  --add "visitors"
+    # But restrain on /admin
+    ynh_permission_create --permission "admin" --url "/admin" --allowed "all_users"
+fi
+
+#=================================================
+# RELOAD NGINX
+#=================================================
+ynh_script_progression --message="Reloading NGINX web server..."
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression --message="Upgrade of Baïkal completed" --last

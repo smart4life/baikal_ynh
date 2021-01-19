@@ -1,82 +1,174 @@
 #!/bin/bash
 
-set -e
+#=================================================
+# GENERIC START
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Retrieve arguments
-domain=$1
-path=${2%/}
-password=$3
-app=${!#}
-
-# Load common variables and helpers
 source ./_common.sh
+source /usr/share/yunohost/helpers
 
-# Set app specific variables
-dbname=$app
-dbuser=$app
+#=================================================
+# MANAGE SCRIPT FAILURE
+#=================================================
 
-# Check domain/path availability
-sudo yunohost app checkurl "${domain}${path}" -a "$app" \
-  || exit 1
+ynh_abort_if_errors
 
-# Check destination directory
-DESTDIR="/var/www/${app}"
-[[ -d "$DESTDIR" ]] && ynh_die \
-"The destination directory '${DESTDIR}' already exists.\
- You should safely delete it before installing this app."
+#=================================================
+# RETRIEVE ARGUMENTS FROM THE MANIFEST
+#=================================================
 
-# Create tmp directory and fetch app inside
-TMPDIR=$(ynh_mkdir_tmp)
-extract_baikal "$TMPDIR"
+domain=$YNH_APP_ARG_DOMAIN
+path_url=$YNH_APP_ARG_PATH
+password=$YNH_APP_ARG_PASSWORD
 
-# Generate random DES key & password
-deskey=$(ynh_string_random 24)
-dbpass=$(ynh_string_random)
+app=$YNH_APP_INSTANCE_NAME
 
-# Initialize database
-ynh_mysql_create_db "$dbname" "$dbuser" "$dbpass"
-ynh_mysql_connect_as "$dbuser" "$dbpass" "$dbname" \
-    < "${TMPDIR}/Core/Resources/Db/MySQL/db.sql"
+#=================================================
+# CHECK IF THE APP CAN BE INSTALLED WITH THESE ARGS
+#=================================================
+ynh_script_progression --message="Validating installation parameters..."
 
+final_path=/var/www/$app
+test ! -e "$final_path" || ynh_die "This path already contains a folder"
+
+# Register (book) web path
+ynh_webpath_register --app=$app --domain=$domain --path_url=$path_url
+
+# Check if .well-known is available for this domain.
+if is_url_handled --domain="$domain" --path="/.well-known/caldav" || is_url_handled --domain="$domain" --path="/.well-known/carddav"
+then
+    ynh_die --message="Another app already uses the domain $domain to serve a calDAV/cardDAV feature. Please use another domain."
+fi
+
+#=================================================
+# STORE SETTINGS FROM MANIFEST
+#=================================================
+ynh_script_progression --message="Storing installation settings..." --weight=2
+
+ynh_app_setting_set --app=$app --key=domain --value=$domain
+ynh_app_setting_set --app=$app --key=path --value=$path_url
+
+#=================================================
+# STANDARD MODIFICATIONS
+#=================================================
+# INSTALL DEPENDENCIES
+#=================================================
+ynh_script_progression --message="Installing dependencies..." --weight=5
+
+ynh_install_app_dependencies $pkg_dependencies
+
+#=================================================
+# CREATE A MYSQL DATABASE
+#=================================================
+ynh_script_progression --message="Creating a MySQL database..."
+
+db_name=$(ynh_sanitize_dbid $app)
+ynh_app_setting_set --app=$app --key=db_name --value=$db_name
+ynh_mysql_setup_db --db_user=$db_name --db_name=$db_name
+
+#=================================================
+# DOWNLOAD, CHECK AND UNPACK SOURCE
+#=================================================
+ynh_script_progression --message="Setting up source files..." --weight=8
+
+ynh_app_setting_set --app=$app --key=final_path --value=$final_path
+# Download, check integrity, uncompress and patch the source from app.src
+ynh_setup_source --dest_dir="$final_path"
+
+#=================================================
+# NGINX CONFIGURATION
+#=================================================
+ynh_script_progression --message="Configuring NGINX web server..."
+
+# Create a dedicated NGINX config
+ynh_add_nginx_config
+
+#=================================================
+# CREATE DEDICATED USER
+#=================================================
+ynh_script_progression --message="Configuring system user..." --weight=3
+
+# Create a system user
+ynh_system_user_create --username=$app
+
+#=================================================
+# PHP-FPM CONFIGURATION
+#=================================================
+ynh_script_progression --message="Configuring PHP-FPM..."
+
+# Create a dedicated PHP-FPM config
+ynh_add_fpm_config
+
+#=================================================
+# SPECIFIC SETUP
+#=================================================
+# INITIALIZE DATABASE
+#=================================================
+ynh_script_progression --message="Configuring Baïkal..." --weight=3
+
+ynh_mysql_connect_as --user=$db_name --password="$db_pwd" --database=$db_name \
+    < "${final_path}/Core/Resources/Db/MySQL/db.sql"
+
+#=================================================
+# CONFIGURE BAIKAL
+#=================================================
+
+bk_conf="${final_path}/config/baikal.yaml"
+cp ../conf/baikal.yaml "$bk_conf"
+
+ynh_replace_string --match_string="__TIMEZONE__" --replace_string="$(cat /etc/timezone)" --target_file="$bk_conf"
 # Create admin password hash
-password_hash=$(echo -n admin:BaikalDAV:$password | md5sum | cut -d ' ' -f 1)
+password_hash=$(echo -n admin:BaikalDAV:$password | sha256sum | cut -d ' ' -f 1)
+ynh_replace_string --match_string="__PASSWORDHASH__" --replace_string="${password_hash}" --target_file="$bk_conf"
+ynh_app_setting_set --app=$app --key=password_hash --value=$password_hash
 
-# Copy and set Baikal configuration
-bk_conf="${TMPDIR}/Specific/config.php"
-cp ../conf/config.php "$bk_conf"
-sed -i "s@#TIMEZONE#@$(cat /etc/timezone)@g" "$bk_conf"
-sed -i "s@#PASSWORDHASH#@${password_hash}@g" "$bk_conf"
+ynh_replace_string --match_string="__PATH__" --replace_string="${path_url%/}" --target_file="$bk_conf"
+ynh_replace_string --match_string="__DBNAME__" --replace_string="$db_name" --target_file="$bk_conf"
+ynh_replace_string --match_string="__DBUSER__" --replace_string="$db_name" --target_file="$bk_conf"
+ynh_replace_string --match_string="__DBPASS__" --replace_string="$db_pwd" --target_file="$bk_conf"
 
-bk_conf="${TMPDIR}/Specific/config.system.php"
-cp ../conf/config.system.php "$bk_conf"
-sed -i "s@#PATH#@${path}@g"     "$bk_conf"
-sed -i "s@#DBNAME#@${dbname}@g" "$bk_conf"
-sed -i "s@#DBUSER#@${dbuser}@g" "$bk_conf"
-sed -i "s@#DBPASS#@${dbpass}@g" "$bk_conf"
-sed -i "s@#DESKEY#@${deskey}@g" "$bk_conf"
+deskey=$(ynh_string_random 24)
+ynh_app_setting_set --app=$app --key=encrypt_key --value="$deskey"
+ynh_replace_string --match_string="__DESKEY__" --replace_string="$deskey" --target_file="$bk_conf"
+
+# Store the config file checksum into the app settings
+ynh_store_file_checksum --file="$bk_conf"
 
 # Disable installation
-touch "${TMPDIR}/Specific/INSTALL_DISABLED"
+touch "${final_path}/Specific/INSTALL_DISABLED"
 
-# Install files and set permissions
-sudo mv "$TMPDIR" "$DESTDIR"
-sudo chown -R www-data: "$DESTDIR"
+#=================================================
+# GENERIC FINALIZATION
+#=================================================
+# SECURE FILES AND DIRECTORIES
+#=================================================
 
-# Copy and set nginx configuration
-nginx_conf="/etc/nginx/conf.d/${domain}.d/${app}.conf"
-sed -i "s@#PATH#@${path}@g"        ../conf/nginx.conf
-sed -i "s@#LOCATION#@${path:-/}@g" ../conf/nginx.conf
-sed -i "s@#DESTDIR#@${DESTDIR}@g"  ../conf/nginx.conf
-sudo cp ../conf/nginx.conf "$nginx_conf"
+# Set permissions
+chown -R root: "$final_path"
+chown $app "$final_path/config/baikal.yaml"
+chmod 640 "$final_path/config/baikal.yaml"
 
-# Save app settings
-ynh_app_setting_set "$app" password "$password"
-ynh_app_setting_set "$app" encrypt_key "$deskey"
-ynh_app_setting_set "$app" mysqlpwd "$dbpass"
+#=================================================
+# SETUP SSOWAT
+#=================================================
+ynh_script_progression --message="Configuring SSOwat..." --weight=2
 
-# Set SSOwat rules
-ynh_app_setting_set "$app" skipped_uris "/"
-ynh_app_setting_set "$app" protected_uris "/admin/"
+# Allow public access on /
+ynh_permission_update --permission "main"  --add "visitors"
+# But restrain on /admin
+ynh_permission_create --permission "admin" --url "/admin" --allowed "all_users"
 
-# Reload services
-sudo service nginx reload || true
+#=================================================
+# RELOAD NGINX
+#=================================================
+ynh_script_progression --message="Reloading NGINX web server..."
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression --message="Installation of Baïkal completed" --last
