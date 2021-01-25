@@ -20,6 +20,7 @@ domain=$(ynh_app_setting_get --app=$app --key=domain)
 path_url=$(ynh_app_setting_get --app=$app --key=path)
 final_path=$(ynh_app_setting_get --app=$app --key=final_path)
 db_name=$(ynh_app_setting_get --app=$app --key=db_name)
+phpversion=$(ynh_app_setting_get --app=$app --key=phpversion)
 
 #=================================================
 # CHECK VERSION
@@ -91,7 +92,6 @@ ynh_script_progression --message="Upgrading NGINX web server configuration..."
 
 # Create a dedicated NGINX config
 ynh_add_nginx_config
-phpversion=$(ynh_app_setting_get --app=$app --key=phpversion)
 
 #=================================================
 # UPGRADE DEPENDENCIES
@@ -190,6 +190,7 @@ ynh_script_progression --message="Configuring SSOwat..." --weight=2
 
 # Upgrade from the legacy permissions system
 protected_uris=$(ynh_app_setting_get --app="$app" --key=protected_uris)
+
 if [ -n "${protected_uris}" ]; then
     ynh_app_setting_delete --app="$app" --key=protected_uris
 
