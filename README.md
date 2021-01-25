@@ -46,7 +46,7 @@ In addition to Baïkal core features, the following are made available with this
 
 ## Additional information
 
-* There is a breaking change in the management of the administrator password when upgrading to 0.7.0. You must change the admin password!
+* There is a breaking change in the management of the administrator password when upgrading to 0.7.0 You must change the admin password!
 * To be able to change the admin password, please visit the page: `https://you.domain.tld/yunohost/admin/#/apps/baikal/actions` and set a new password.
 
 ## Links
