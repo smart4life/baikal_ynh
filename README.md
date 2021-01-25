@@ -14,6 +14,8 @@ sabre/dav, that includes an administration interface for easy management.
 
 ## Screenshots
 
+![](http://www.baikal-server.com/res/img/screenshots/dashboard.png)
+
 ## Demo
 
 * [YunoHost demo](https://demo.yunohost.org/baikal/admin/)
