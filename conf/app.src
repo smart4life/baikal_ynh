@@ -1,5 +1,5 @@
-SOURCE_URL=https://github.com/sabre-io/Baikal/releases/download/0.7.1/baikal-0.7.1.zip
-SOURCE_SUM=dade7d8dd740ed66f6d87368a6ceff845938ba57d7f45063f8b9cea6278c1c0a
+SOURCE_URL=https://github.com/smart4life/Baikal/releases/download/0.8.0-1/baikal-0.8.0-1.zip
+SOURCE_SUM=c9a90fbd9c607831c1fc14bf10d3dce4a6247fcc2eb56a4afd1708e67195c1ec
 SOURCE_SUM_PRG=sha256sum
 SOURCE_FORMAT=zip
 SOURCE_IN_SUBDIR=true
