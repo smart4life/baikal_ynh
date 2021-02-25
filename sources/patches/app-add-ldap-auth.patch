@@ -1,5 +1,5 @@
 diff --git a/Core/Frameworks/Baikal/Core/Server.php b/Core/Frameworks/Baikal/Core/Server.php
-index b4765d1..140f7b1 100644
+index b4765d1..4d04d87 100644
 --- a/Core/Frameworks/Baikal/Core/Server.php
 +++ b/Core/Frameworks/Baikal/Core/Server.php
 @@ -133,6 +133,8 @@ class Server {
@@ -11,6 +11,19 @@ index b4765d1..140f7b1 100644
          } elseif ($this->authType === 'Apache') {
              $authBackend = new \Sabre\DAV\Auth\Backend\Apache();
          } else {
+@@ -168,7 +170,11 @@ class Server {
+         $this->server->addPlugin(new \Sabre\DAV\Sync\Plugin());
+ 
+         if ($this->enableCalDAV) {
+-            $this->server->addPlugin(new \Sabre\CalDAV\Plugin());
++            if ($this->authType === 'LDAP-UserBind') {
++                $this->server->addPlugin(new \Baikal\Core\LDAPCalDAVPlugin());
++            } else {
++                $this->server->addPlugin(new \Sabre\CalDAV\Plugin());
++            }
+             $this->server->addPlugin(new \Sabre\CalDAV\ICSExportPlugin());
+             $this->server->addPlugin(new \Sabre\CalDAV\Schedule\Plugin());
+             $this->server->addPlugin(new \Sabre\DAV\Sharing\Plugin());
 diff --git a/Core/Frameworks/Baikal/Model/Config/Standard.php b/Core/Frameworks/Baikal/Model/Config/Standard.php
 index 416827f..2f86d84 100644
 --- a/Core/Frameworks/Baikal/Model/Config/Standard.php
